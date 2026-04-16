@@ -109,6 +109,29 @@ class EnhancedSuperBrain:
             weight = np.random.uniform(self.weight_min, self.weight_max)
             self.synapses.append((pre, post, weight))
 
+    # ====================== NEW: INJECT SPARSE SDRs ======================
+    def inject_sparse_sdrs(self, sdr_list: List[np.ndarray], description: str = "IMDB train"):
+        """
+        Inject binary SDRs (or index arrays) into the brain.
+        We store only the active indices (much smaller memory).
+        """
+        print(f"Injecting {len(sdr_list):,} sparse SDRs into EnhancedSuperBrain...")
+        for sdr in sdr_list:
+            # Convert full binary SDR → active indices (memory efficient)
+            if sdr.ndim == 1 and sdr.dtype in (np.uint8, bool):
+                indices = np.where(sdr)[0].astype(np.int32)
+            else:
+                indices = sdr.astype(np.int32)
+            self.stored_sdrs.append(indices)
+
+        self.metadata = getattr(self, 'metadata', {})
+        self.metadata.update({
+            "injected_dataset": description,
+            "total_sdrs": len(self.stored_sdrs),
+            "injected_at": datetime.now().isoformat()
+        })
+        print(f"✅ Injection complete. Brain now holds {len(self.stored_sdrs):,} sparse representations.")
+
     def save(self, filepath):
         with open(filepath, 'wb') as f:
             pickle.dump(self, f)
