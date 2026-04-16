@@ -147,10 +147,3 @@ class EnhancedSuperBrain:
         print(f"Topology: {self.topology}, avg weight: {np.mean([w for _,_,w in self.synapses]):.3f}")
         print(f"Created: {self.created}")
 
-# ---------------------------
-if __name__ == "__main__":
-    # Create a super‑brain with scale‑free topology, strong initial weights
-    brain = EnhancedSuperBrain(num_neurons=86000, target_degree=10,
-                               weight_range=(0.9, 1.0), topology='scale_free')
-    brain.save("super_brain.pkl")
-    brain.summary()
