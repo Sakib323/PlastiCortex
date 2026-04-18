@@ -90,26 +90,22 @@ class EnhancedSuperBrain:
     # ====================== INJECT SDRs ======================
     def inject_sparse_sdrs(self, sdr_list, description: str = "IMDB train"):
         """
-        Robust injection: accepts list of numpy arrays OR plain Python lists.
-        Works with np.load(..., allow_pickle=True).tolist()
+        Robust injection for np.load(..., allow_pickle=True) → list of lists.
         """
         print(f"Injecting {len(sdr_list):,} sparse SDRs into EnhancedSuperBrain...")
 
-        for sdr in sdr_list:
-            # Force conversion to numpy array (handles both list and ndarray)
-            if isinstance(sdr, list):
-                sdr = np.array(sdr, dtype=np.int32)
+        for item in sdr_list:
+            # Convert whatever we get into a clean numpy index array
+            if isinstance(item, list):
+                indices = np.array(item, dtype=np.int32)
+            elif isinstance(item, np.ndarray):
+                indices = item.astype(np.int32)
             else:
-                sdr = np.asarray(sdr, dtype=np.int32)
+                indices = np.asarray(item, dtype=np.int32).flatten()
 
-            # Now safe to check ndim
-            if sdr.ndim == 1:
-                if sdr.max() <= 1 and sdr.min() >= 0:          # binary vector
-                    indices = np.where(sdr > 0)[0].astype(np.int32)
-                else:
-                    indices = sdr.astype(np.int32)              # already indices
-            else:
-                indices = sdr.astype(np.int32)
+            # Safety check
+            if indices.ndim != 1:
+                indices = indices.flatten()
 
             self.stored_sdrs.append(indices)
 
@@ -123,7 +119,6 @@ class EnhancedSuperBrain:
 
         print(f"✅ Injection complete! Brain now holds {len(self.stored_sdrs):,} SDRs")
         print(f"   Average active neurons per SDR: ~{int(self.metadata['avg_active_neurons'])}")
-
     # ====================== SAVE / LOAD ======================
     def save(self, filepath: str):
         with open(filepath, 'wb') as f:
