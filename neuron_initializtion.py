@@ -88,20 +88,30 @@ class EnhancedSuperBrain:
             self.synapses.append((pre, post, weight))
 
     # ====================== INJECT SDRs ======================
-    def inject_sparse_sdrs(self, sdr_list: List[np.ndarray], description: str = "IMDB train"):
+    def inject_sparse_sdrs(self, sdr_list, description: str = "IMDB train"):
         """
         Inject sparse SDRs (binary or indices) into the brain.
+        Accepts: list of numpy arrays OR numpy object array from np.load(allow_pickle=True)
         """
         print(f"Injecting {len(sdr_list):,} sparse SDRs into EnhancedSuperBrain...")
 
         for sdr in sdr_list:
-            if sdr.ndim == 1 and sdr.dtype in (np.uint8, bool, np.int32):
-                if sdr.max() <= 1:                                 # binary vector
+            # Convert to numpy array safely
+            if isinstance(sdr, list):
+                sdr = np.array(sdr, dtype=np.int32)
+            elif not isinstance(sdr, np.ndarray):
+                sdr = np.asarray(sdr, dtype=np.int32)
+
+            # Now safely check
+            if sdr.ndim == 1:
+                if sdr.dtype in (np.uint8, bool) or (sdr.max() <= 1 and sdr.min() >= 0):
+                    # binary vector
                     indices = np.where(sdr > 0)[0].astype(np.int32)
                 else:
+                    # already indices
                     indices = sdr.astype(np.int32)
             else:
-                indices = np.array(sdr, dtype=np.int32)
+                indices = sdr.astype(np.int32)
 
             self.stored_sdrs.append(indices)
 
