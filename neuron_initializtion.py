@@ -90,26 +90,24 @@ class EnhancedSuperBrain:
     # ====================== INJECT SDRs ======================
     def inject_sparse_sdrs(self, sdr_list, description: str = "IMDB train"):
         """
-        Inject sparse SDRs (binary or indices) into the brain.
-        Accepts: list of numpy arrays OR numpy object array from np.load(allow_pickle=True)
+        Robust injection: accepts list of numpy arrays OR plain Python lists.
+        Works with np.load(..., allow_pickle=True).tolist()
         """
         print(f"Injecting {len(sdr_list):,} sparse SDRs into EnhancedSuperBrain...")
 
         for sdr in sdr_list:
-            # Convert to numpy array safely
+            # Force conversion to numpy array (handles both list and ndarray)
             if isinstance(sdr, list):
                 sdr = np.array(sdr, dtype=np.int32)
-            elif not isinstance(sdr, np.ndarray):
+            else:
                 sdr = np.asarray(sdr, dtype=np.int32)
 
-            # Now safely check
+            # Now safe to check ndim
             if sdr.ndim == 1:
-                if sdr.dtype in (np.uint8, bool) or (sdr.max() <= 1 and sdr.min() >= 0):
-                    # binary vector
+                if sdr.max() <= 1 and sdr.min() >= 0:          # binary vector
                     indices = np.where(sdr > 0)[0].astype(np.int32)
                 else:
-                    # already indices
-                    indices = sdr.astype(np.int32)
+                    indices = sdr.astype(np.int32)              # already indices
             else:
                 indices = sdr.astype(np.int32)
 
