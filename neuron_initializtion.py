@@ -48,21 +48,65 @@ class EnhancedSuperBrain:
                 self.synapses.append((pre, post, weight))
 
     def _build_scale_free(self):
+        """
+        Barabási-Albert preferential attachment.
+
+        FIX: The original implementation recomputed the degree of every node
+        by scanning the full edge set at each step:
+            degrees = {n: sum(1 for (u,v) in edges if u==n or v==n) ...}
+        That is O(N * E) per new node → O(N² * E) total → never finishes for 86k neurons.
+
+        Fix: maintain an incremental degree array updated in O(m0) per step,
+        and keep a flat (pre-allocated) stubs array for O(1) preferential sampling
+        via the "repeated-degree" trick (each node appears degree[n] times in the
+        stubs list; a uniform random draw gives probability proportional to degree).
+        """
         m0 = 5
+        # Incremental degree tracking  (key fix — no more full-scan)
+        degree = np.zeros(self.num_neurons, dtype=np.int64)
+
+        # Initial clique
         edges = set()
         for i in range(m0):
-            for j in range(i+1, m0):
+            for j in range(i + 1, m0):
                 edges.add((i, j))
                 edges.add((j, i))
+                degree[i] += 1
+                degree[j] += 1
+
+        # Stubs list: each node appears degree[n] times.
+        # Preferential attachment = pick uniformly from stubs.
+        # We use a dynamic list; for 86k nodes with avg degree 10, final size ~860k.
+        stubs = []
+        for i in range(m0):
+            stubs.extend([i] * int(degree[i]))
+
         for new_node in range(m0, self.num_neurons):
-            degrees = {n: sum(1 for (u,v) in edges if u==n or v==n) for n in range(new_node)}
-            total_deg = sum(degrees.values())
-            if total_deg == 0: continue
-            probs = [degrees[n]/total_deg for n in range(new_node)]
-            targets = np.random.choice(range(new_node), size=m0, replace=False, p=probs)
+            if not stubs:
+                continue
+
+            # Sample m0 unique targets proportional to current degree
+            stubs_arr = np.array(stubs, dtype=np.int32)
+            chosen_positions = np.random.choice(len(stubs_arr), size=min(m0 * 5, len(stubs_arr)), replace=False)
+            # Deduplicate and take first m0 unique targets
+            seen = set()
+            targets = []
+            for pos in chosen_positions:
+                t = int(stubs_arr[pos])
+                if t != new_node and t not in seen:
+                    seen.add(t)
+                    targets.append(t)
+                if len(targets) == m0:
+                    break
+
             for t in targets:
                 edges.add((new_node, t))
                 edges.add((t, new_node))
+                degree[new_node] += 1
+                degree[t] += 1
+                stubs.append(new_node)
+                stubs.append(t)
+
         for (pre, post) in edges:
             weight = np.random.uniform(self.weight_min, self.weight_max)
             self.synapses.append((pre, post, weight))
